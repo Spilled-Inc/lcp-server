@@ -8,9 +8,10 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -20,12 +21,41 @@ import (
 	"github.com/readium/readium-lcp-server/encrypt"
 )
 
-// processFile processes a single file
-func processFile(c Config, filename string, fileHandling FileHandling) error {
-	log.Printf("Processing file: %s", filename)
+func isRemoteURL(s string) bool {
+	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") || strings.HasPrefix(s, "ftp://")
+}
 
-	// create a path from c.InputPath and filename
-	inputFilePath := path.Join(c.InputPath, filename)
+// processFile processes a single file.
+// rawInput is the original -input value (full URL or local path); filename is filepath.Base of that.
+func processFile(c Config, rawInput string, filename string, fileHandling FileHandling) error {
+	log.Printf("Processing file: %s", rawInput)
+
+	// For remote URLs, download to a randomly-named local temp file so that the
+	// library's internal temp file (named <contentID>.epub) never collides with it.
+	var inputFilePath string
+	if isRemoteURL(rawInput) {
+		tmpFile, err := os.CreateTemp("", "lcpinput-*"+filepath.Ext(filename))
+		if err != nil {
+			return fmt.Errorf("creating temp file for download: %w", err)
+		}
+		defer os.Remove(tmpFile.Name())
+
+		resp, err := http.Get(rawInput)
+		if err != nil {
+			tmpFile.Close()
+			return fmt.Errorf("downloading %s: %w", rawInput, err)
+		}
+		_, copyErr := io.Copy(tmpFile, resp.Body)
+		resp.Body.Close()
+		tmpFile.Close()
+		if copyErr != nil {
+			return fmt.Errorf("saving downloaded file: %w", copyErr)
+		}
+		log.Debugf("Downloaded %s → %s", rawInput, tmpFile.Name())
+		inputFilePath = tmpFile.Name()
+	} else {
+		inputFilePath = filepath.Join(c.InputPath, filename)
+	}
 
 	// extract the username and password from the url, remove them from the url
 	var username, password string
@@ -35,7 +65,7 @@ func processFile(c Config, filename string, fileHandling FileHandling) error {
 	}
 
 	// if the publication UUID or AltID is imposed, check if the content already exists in the License Server.
-	// Note that the publication UUID or AltID may also have be set via the command line. 
+	// Note that the publication UUID or AltID may also have be set via the command line.
 	// If this is the case, get the content encryption key for the server, so that the new encryption
 	// keeps the same key.
 	// This is necessary to allow fresh licenses being capable of decrypting previously downloaded content.
@@ -65,11 +95,21 @@ func processFile(c Config, filename string, fileHandling FileHandling) error {
 
 	start := time.Now()
 
-	// encrypt the publication
-	// no specific temp directory, no specific output directory
-	// request a cover image
+	// Use a dedicated temp directory so the encrypted output file (<uuid>.epub)
+	// never collides with the input file sitting in the same folder.
 	log.Println("Starting encryption...")
-	publication, err := encrypt.ProcessEncryption(c.UUID, contentkey, inputFilePath, "", "", c.StoragePath, c.StorageUrl, "", c.ExtractCover, c.PDFNoMeta)
+	workDir, err := os.MkdirTemp("", "lcpencrypt-*")
+	if err != nil {
+		return fmt.Errorf("creating work directory: %w", err)
+	}
+	defer os.RemoveAll(workDir)
+
+	if err := os.MkdirAll(filepath.Join(workDir, "encrypted"), os.ModePerm); err != nil {
+		return fmt.Errorf("creating encrypted dir: %w", err)
+	}
+	storageFilename := "encrypted/" + c.UUID
+
+	publication, err := encrypt.ProcessEncryption(c.UUID, contentkey, inputFilePath, workDir, "", c.StoragePath, c.StorageUrl, storageFilename, c.ExtractCover, c.PDFNoMeta)
 	if err != nil {
 		return err
 	}
@@ -104,8 +144,7 @@ func processFile(c Config, filename string, fileHandling FileHandling) error {
 
 	fmt.Println("The encryption took", elapsed)
 
-	if fileHandling == DeleteFile {
-		// delete the file
+	if fileHandling == DeleteFile && !isRemoteURL(rawInput) {
 		if err := os.Remove(inputFilePath); err != nil {
 			return err
 		}

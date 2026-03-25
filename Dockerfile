@@ -70,13 +70,9 @@ RUN apt-get update && apt-get install -y ca-certificates wget mupdf-tools && rm 
 ARG UID=10001
 RUN useradd --uid "${UID}" --user-group --system --no-log-init --create-home appuser
 
-# Copy the X509 test certificate (to be replaced later by the production certificate)
-COPY /config/cert-edrlab-test.pem ./config/
-COPY /config/privkey-edrlab-test.pem ./config/
-# For production, use:
-# UNCOMMENT THESE AND SET UP CONFIG WHEN WE GO TO PROD
-#COPY /config/cert-production.pem ./config/
-#COPY /config/privkey-production.pem ./config/
+# LCP provider certificate (local dev: openssl-generated cert-local.pem + privkey-local.pem in config/)
+COPY /config/cert-local.pem ./config/
+COPY /config/privkey-local.pem ./config/
 
 # create a directory in the container for input files
 RUN mkdir /input

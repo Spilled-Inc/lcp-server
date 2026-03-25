@@ -18,19 +18,19 @@ import (
 
 // LCP Encrypt configuration
 type Config struct {
-	InputPath    string `split_words:"true"`
-	ProviderUri  string `split_words:"true"`
+	InputPath     string `split_words:"true"`
+	ProviderUri   string `split_words:"true"`
 	UseFilenameAs string `split_words:"true"`
-	UUID         string
-	AltID        string
-	Verbose      bool
-	V2           bool
-	ExtractCover bool
-	PDFNoMeta    bool   `split_words:"true"`
-	StoragePath  string `split_words:"true"`
-	StorageUrl   string `split_words:"true"`
-	LCPServerUrl string `envconfig:"lcpserver_url"`
-	CMSUrl       string `split_words:"true" envconfig:"cms_url"`
+	UUID          string
+	AltID         string
+	Verbose       bool
+	V2            bool
+	ExtractCover  bool
+	PDFNoMeta     bool   `split_words:"true"`
+	StoragePath   string `split_words:"true"`
+	StorageUrl    string `split_words:"true"`
+	LCPServerUrl  string `envconfig:"lcpserver_url"`
+	CMSUrl        string `split_words:"true" envconfig:"cms_url"`
 }
 
 // create an enum with two values: keep_file and delete_file
@@ -64,7 +64,7 @@ func main() {
 	storagePath := flag.String("storage", "", "storage path")
 	storageUrl := flag.String("url", "", "storage URL")
 	lcpServerUrl := flag.String("lcpsv", "", "LCP Server URL")
-	cmsUrl := flag.String("cms", "", "CMS URL")		
+	cmsUrl := flag.String("cms", "", "CMS URL")
 	verbose := flag.Bool("verbose", false, "if set, display info messages; if not set, display only warnings and errors.")
 	v2 := flag.Bool("v2", true, "indicates a v2 License server")
 	cover := flag.Bool("cover", true, "indicates if a cover should be exported")
@@ -137,7 +137,7 @@ func main() {
 		activateServer(c)
 	} else if filename != "." {
 		// run the utility as a command line tool, keeping the input file in place
-		err = processFile(c, filename, KeepFile)
+		err = processFile(c, *input, filename, KeepFile)
 		if err != nil {
 			log.Errorf("Error processing file: %v", err)
 		}
