@@ -74,8 +74,9 @@ RUN useradd --uid "${UID}" --user-group --system --no-log-init --create-home app
 COPY /config/cert-edrlab-test.pem ./config/
 COPY /config/privkey-edrlab-test.pem ./config/
 # For production, use:
-COPY /config/cert-production.pem ./config/
-COPY /config/privkey-production.pem ./config/
+# UNCOMMENT THESE AND SET UP CONFIG WHEN WE GO TO PROD
+#COPY /config/cert-production.pem ./config/
+#COPY /config/privkey-production.pem ./config/
 
 # create a directory in the container for input files
 RUN mkdir /input
