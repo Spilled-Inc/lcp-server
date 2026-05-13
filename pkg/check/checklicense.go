@@ -345,7 +345,9 @@ func (c *LicenseChecker) CheckHintPageLink() error {
 		return nil
 	}
 
-	if hintType != "text/html" {
+	if hintType == "" {
+		log.Warning("A mime type for the hint page is recommended; text/html is expected")
+	} else if hintType != "text/html" {
 		log.Errorf("The mime type of the hint page (%s) is invalid", hintType)
 	}
 
