@@ -51,7 +51,7 @@ func init() {
 }
 
 func usage() {
-	fmt.Println("Usage: lcpencrypt [-v2] [-serve] [-input] [-usefnas] [-uuid] [-altid] [-verbose] [-pdfnometa] [-cover]")
+	fmt.Println("Usage: lcpencrypt [-v2] [-serve] [-input] [-usefnas] [-uuid] [-altid] [-verbose] [-pdfnometa] [-cover] [-lcpsv][-cms] [-storage] [-url]")
 	flag.PrintDefaults()
 }
 
