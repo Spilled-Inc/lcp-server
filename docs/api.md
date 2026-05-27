@@ -6,7 +6,26 @@ nav_order: 5
 
 # LCP Server API
 
-## Calls from the ebook delivery platform
+## API calls from the CMS and the LCP Encryption utility
+
+We call CMS (Content Management system) any server software you operate to present ebook/audiobook catalogs to users, and allow them to buy or borrow these publications.
+
+A CMS will:
+
+**Generate a license**: called by the CMS just after a user buys or borrows a book. The user passphrase (password with spaces) must be part of the user profile; this should be editable and stored by the CMS as an option. The call returns a ready-to-use license. 
+
+This license must then be provided to the user: it can be displayed as a download link, sent via email, or any other method.
+
+**Fetch a fresh license***: called by the CMS when an LCP-compliant reading application detects that the license has been modified (e.g., the end date has been changed). The CMS must act as a middleware, a bridge between reading apps and the LCP Server, adding the user information required to generate an updated license.  Note that the LCP Server does not store user information, as it would be a dangerous duplicate of your CMS content. 
+
+**Search overshared licenses**: called by your back office when you want to list publications which may be overshared. A `count` attribute is used to scope the search by the number of devices which have activated the license. Count is a min:max tuple, meaning that you can llist all licenses activated by more than 10 devices but less than 50.      
+
+**Revoke a license**: called by your back office when you detect an overshared license.
+
+The LCP Encryption utiliy will:
+
+**Add a publication**: called after the encryption has been achieved and the encrypted publication has been moved to its final storage (e.g. S3).
+
 
 ### Generate a license
 
@@ -74,104 +93,11 @@ with a payload like:
 
 - `profile`, `user_name` and `user_email` and `user_encrypted` are optional. They should be present if they were set in the license generation request.  
 
-The License Server does not store user information. This is why such information, including the textual hint and passphrase, must be repeated each time a fresh license is requested. 
-
-
-## Other calls
-
-### CRUD on a publication
-
-One can add a publication to the server via:
-
-POST {LCPServerURL}/publications/ 
-
-with a payload like:
-
-```json
-{
-    "uuid": "c6abe80a-1681-4694-b6f4-80c165213781",
-    "title": "Voyage au centre de la terre",
-    "encryption_key": "ZW5jcnlwdGlvbl9rZXkgeCBlbmNyeXB0aW9uX2tleQ==",
-    "href": "https://edrlab.org/f/pub1.epub",
-    "content_type": "application/epub+zip",
-    "size": 769257,
-    "checksum": "edce32ca54c36aa73da9075098fc592fa29ff3e12406d1442544535d99dc1b87" 
-}
-```
-
-The publication will be identified by its `uuid` value.
-
-You can also:
-
-1. Get a list of publications via:
-
-- GET {LCPServerURL}/publications/, with `page` and `per_page` pagination parameters.
-- GET {LCPServerURL}/publications/search/ with a `format` parameter taking as a value: `epub`, `pdf`, `lcpdf`, `lcpa` or `lcpdi`. 
-
-2. Fetch, update or delete (the info relative to) a publication via:
-
-- GET {LCPServerURL}/publications/{publicationID} 
-- PUT {LCPServerURL}/publications/{publicationID} (same payload as for a creation)
-- DELETE {LCPServerURL}/publications/{publicationID} 
-
-Where {publicationID} is the uuid used for the creation of the publication. 
-
-`href` must be a public URL, accessible from any device on the internet. 
-
-Note: because publications are submitted to a soft delete, the suppression of a publication does not impact the existing 
-licenses associated with the publication. But no new license can be generated for a deleted publication. 
-
-
-### Get a status document
-
-This is a public route. 
-
-Status is implemented as:
-
-GET {LCPServerURL}/status/{licenseID} 
-
-The returned payload is a fresh status document.
-
-
-### Register / Renew / Return a license
-
-Register, Renew and Return are public routes.
-
-Register is implemented as:
-
-POST {LCPServerURL}/register/{licenseID} 
-
-Renew is implemented as: 
-
-PUT {LCPServerURL}/renew/{licenseID}
-
-Return is implemented as:
-
-PUT {LCPServerURL}/return/{licenseID}
-
-There is no payload associated with these routes, but two query parameters:
-
-* id: a unique device identifier.
-* name: a unique device name.
-
-Renew can also take a third optional query parameter:
-
-* end: the requested end date and time for the license, in W3C datetime format (YYYY-MM-DDThh:mm:ssTZD, cf https://www.w3.org/TR/NOTE-datetime)  
-
-The returned payload is a fresh status document.
-
-
-### Revoke a license
-
-Renew is a private route. It is implemented as: 
-
-PUT {LCPServerURL}/revoke/{licenseID}
-
-with no payload.
+Note: The License Server does not store user information. This is why such information, including the textual hint and passphrase, must be repeated each time a fresh license is requested. 
 
 ### CRUD on license information
 
-You can add raw license information to the server via:
+You can add a license to the LCP Server via:
 
 POST {LCPServerURL}/licenseinfo/ 
 
@@ -207,3 +133,95 @@ You can also:
 - DELETE {LCPServerURL}/licenseinfo/{{LicenseID}} 
 
 Where {{LicenseID}} is the uuid used for the creation of the license. 
+
+### Revoke a license
+
+Renew is a private route. It is implemented as: 
+
+PUT {LCPServerURL}/revoke/{licenseID}
+
+with no payload.
+
+### CRUD on a publication
+
+You can add a publicationto the LCP Server via:
+
+POST {LCPServerURL}/publications/ 
+
+with a payload like:
+
+```json
+{
+    "uuid": "c6abe80a-1681-4694-b6f4-80c165213781",
+    "title": "Voyage au centre de la terre",
+    "encryption_key": "ZW5jcnlwdGlvbl9rZXkgeCBlbmNyeXB0aW9uX2tleQ==",
+    "href": "https://edrlab.org/f/pub1.epub",
+    "content_type": "application/epub+zip",
+    "size": 769257,
+    "checksum": "edce32ca54c36aa73da9075098fc592fa29ff3e12406d1442544535d99dc1b87" 
+}
+```
+
+The publication will be identified by its `uuid` value.
+
+Note: the LCP encryption utility uses the POST API route to signal an encrypted publication to the LCP Server. 
+
+You can also:
+
+1. Get a list of publications via:
+
+- GET {LCPServerURL}/publications/, with `page` and `per_page` pagination parameters.
+- GET {LCPServerURL}/publications/search/ with a `format` parameter taking as a value: `epub`, `pdf`, `lcpdf`, `lcpa` or `lcpdi`. 
+
+2. Fetch, update or delete (the info relative to) a publication via:
+
+- GET {LCPServerURL}/publications/{publicationID} 
+- PUT {LCPServerURL}/publications/{publicationID} (same payload as for a creation)
+- DELETE {LCPServerURL}/publications/{publicationID} 
+
+Where {publicationID} is the uuid used for the creation of the publication. 
+
+`href` must be a public URL, accessible from any device on the internet.
+
+Note: because publications are submitted to a soft delete, the suppression of a publication does not impact the existing 
+licenses associated with the publication. But no new license can be generated for a deleted publication. 
+
+## API calls from an LCP-compliant device
+
+### Get a status document
+
+This is a public route. 
+
+Status is implemented as:
+
+GET {LCPServerURL}/status/{licenseID} 
+
+The returned payload is a fresh status document.
+
+
+### Register / Renew / Return a license
+
+These are public routes.
+
+Register is implemented as:
+
+POST {LCPServerURL}/register/{licenseID} 
+
+Renew is implemented as: 
+
+PUT {LCPServerURL}/renew/{licenseID}
+
+Return is implemented as:
+
+PUT {LCPServerURL}/return/{licenseID}
+
+There is no payload associated with these routes, but two query parameters:
+
+* id: a unique device identifier.
+* name: a unique device name.
+
+Renew can also take a third optional query parameter:
+
+* end: the requested end date and time for the license, in W3C datetime format (YYYY-MM-DDThh:mm:ssTZD, cf https://www.w3.org/TR/NOTE-datetime)  
+
+The returned payload is a fresh status document.
