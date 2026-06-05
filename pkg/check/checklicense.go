@@ -189,7 +189,11 @@ func (c *LicenseChecker) CheckCertificateChain() (*time.Time, error) {
 	// Verify the certificate validity
 	// An expired certificate is not an issue
 	if _, err := cert.Verify(opts); err != nil && cert.NotAfter.After(time.Now()) {
-		log.Warning("It appears that a test certificate is used but a production profile declared, or vice versa.")
+		if c.license.Encryption.Profile != LCPProfileBasic {
+			log.Warning("A production profile is declared, the X509 certificate is invalid: did you configure the server with your production certificate?")
+		} else {
+			log.Warning("A basic profile is declared, the X509 certificate is invalid: did you configure the server with a valid test certificate?")
+		}
 		return nil, errors.New("failed to verify the certificate: " + err.Error())
 	}
 
@@ -341,7 +345,9 @@ func (c *LicenseChecker) CheckHintPageLink() error {
 		return nil
 	}
 
-	if hintType != "text/html" {
+	if hintType == "" {
+		log.Warning("A mime type for the hint page is recommended; text/html is expected")
+	} else if hintType != "text/html" {
 		log.Errorf("The mime type of the hint page (%s) is invalid", hintType)
 	}
 
@@ -450,6 +456,7 @@ func (c *LicenseChecker) CheckPassphrase(passphrase string) error {
 	hash := sha256.Sum256([]byte(passphrase))
 	passhash := hex.EncodeToString(hash[:])
 
+	//fmt.Println("pasphrase: ", passphrase)
 	//fmt.Println("passhash: ", passhash)
 
 	// regenerate the user key
